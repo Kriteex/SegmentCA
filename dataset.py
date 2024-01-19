@@ -35,7 +35,7 @@ class CustomDataset(Dataset):
         mask = self.transform(torch.from_numpy(mask).float())
         
         # Create an alpha channel filled with ones, of shape [1, 30, 30]
-        alpha_channel = torch.ones(1, 30, 30)
+        alpha_channel = torch.randn(1, 30, 30)
 
         # Concatenate the alpha channel to the original image along the channel dimension
         # This will change the shape to [4, 30, 30]

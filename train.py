@@ -102,13 +102,40 @@ def plot_batch(pool, gt_masks):
     plt.tight_layout()  # Zajistí, aby se sub-plots nepřekrývaly
     plt.show()
 
+def plot_batch_adv(pool, gt_masks):
+    fig, axs = plt.subplots(4, 8, figsize=(20, 10))  # Vytvoří mřížku 4x2 subplotů
+
+    for i in range(8):
+        # Vykreslení pool tensoru
+        axs[0, i].imshow(pool[i, 3, :, :].detach().cpu(), cmap='gray')
+        axs[0, i].set_title(f'Pool Sample {i}')
+        axs[0, i].axis('off')  # Skryje osy
+
+        # Vykreslení pool tensoru
+        axs[2, i].imshow(pool[i, 4, :, :].detach().cpu(), cmap='gray')
+        axs[2, i].set_title(f'Pool arbitary Sample {i}')
+        axs[2, i].axis('off')  # Skryje osy
+
+        # Vykreslení pool tensoru
+        axs[3, i].imshow(pool[i, 5, :, :].detach().cpu(), cmap='gray')
+        axs[3, i].set_title(f'Pool arbitary 2 Sample {i}')
+        axs[3, i].axis('off')  # Skryje osy
+
+        # Vykreslení gt_masks tensoru
+        axs[1, i].imshow(gt_masks[i, 0, :, :].cpu(), cmap='gray')
+        axs[1, i].set_title(f'GT Mask Sample {i}')
+        axs[1, i].axis('off')  # Skryje osy
+
+    plt.tight_layout()  # Zajistí, aby se sub-plots nepřekrývaly
+    plt.show()
+
 
 def main(argv=None):
     batch_size = 8 
     eval_frequency = 999
     eval_iterations = 150
-    n_batches = 2000 # For how many batches the training will be
-    n_channels = 5 # of the input
+    n_batches = 1000 # For how many batches the training will be
+    n_channels = 6 # of the input
     fill_channels = 4
     logdir = "logs"
     padding = 1 # Padding. The shape after padding is (h + 2 * p, w + 2 * p)."
@@ -137,6 +164,11 @@ def main(argv=None):
 
     # Vytvoření dataloaderu
     dataloader = DataLoader(dataset, batch_size=8, shuffle=False, pin_memory=True)
+
+    count = 0
+    for batch in dataloader:
+        count += 1
+        print(count)
     
     for batch in dataloader:
         images, masks = batch
@@ -154,7 +186,7 @@ def main(argv=None):
             
             
             # Počet nových kanálů, které chcete přidat
-            additional_channels = 1
+            additional_channels = 2
 
             # Vytvoření tensoru s doplňkovými kanály (například plný nul)
             #channels_layer = torch.zeros((additional_channels, 30, 30)).to(device)
@@ -180,17 +212,18 @@ def main(argv=None):
                 batch_ixs = np.random.choice(pool_size, batch_size, replace=False).tolist()
 
                 x = pool[batch_ixs]
-                for i in range(np.random.randint(32, 64)):
+                for i in range(np.random.randint(2, 10)):
                     x = model(x)
-                    #if (i == 50) & (it > 100):
-                        # Uncomment to see beutiful plots of whats going into the network
-                        #plot_batch(x, target_masks)
 
+                mean_state_values = x.mean(dim=[0, 2, 3])
+                
+                for ch_num, state_mean in enumerate(mean_state_values):
+                    writer.add_scalar("state {ch_num}", state_mean, it)
                 
 
-                if it % 100 == 0:
+                if it % 2999 == 0:
                     # Uncomment to see beutiful plots of whats going into the network
-                    plot_batch(x, target_masks)
+                    plot_batch_adv(x, target_masks)
 
                 
                 loss_batch = ((target_masks - x[:, 3, ...]) ** 2).mean(dim=[1, 2, 3])
@@ -242,7 +275,6 @@ def main(argv=None):
                     writer.add_video("eval_rgb", eval_video_rgb, it, fps=20)
                     #writer.add_video("eval_arb", eval_video_arb, it, fps=20)
 
-        break
 
 
 if __name__ == "__main__":
